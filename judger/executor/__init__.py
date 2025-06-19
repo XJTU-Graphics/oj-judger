@@ -57,7 +57,7 @@ def judge_judgment(judgment_id):
         current_app.logger.info('source code file saved')
 
         # 准备临时目录
-        temp_dir = '/tmp/dandelion-template'
+        temp_dir = f'{current_app.config["TMP_DIR"]}/dandelion-template'
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         shutil.copytree(dandelion_path, temp_dir)

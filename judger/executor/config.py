@@ -15,3 +15,4 @@ class Config:
     WEB_PASSWORD = os.environ.get('WEB_PASSWORD')
     # Number of parallel build processes (default: CPU count or 4)
     PARALLEL_BUILD = os.environ.get('PARALLEL_BUILD') or os.cpu_count() or 4
+    TMP_DIR = os.environ.get('TMP_DIR') or '/tmp'

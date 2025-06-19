@@ -125,7 +125,7 @@ def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tup
 
 def main(judgment_id: int, unit_test_name: Optional[str] = None):
     '''执行Dandelion项目验证并提交结果'''
-    dandelion_template = Path('/tmp/dandelion-template')
+    dandelion_template = Path(f'{Config.TMP_DIR}/dandelion-template')
     n_proc = Config.PARALLEL_BUILD
     
     try:

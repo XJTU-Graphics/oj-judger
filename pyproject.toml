@@ -1,0 +1,12 @@
+[project]
+name = "judger"
+description = "The judger component of the OJ"
+version = "0.1.0"
+dependencies = [
+    "Flask",
+    "flake8",
+]
+
+[build-system]
+requires = ["flit_core<4"]
+build-backend = "flit_core.buildapi"

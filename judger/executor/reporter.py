@@ -7,6 +7,10 @@ from typing import Dict, Any
 from judger.executor.config import Config
 
 logger = logging.getLogger('reporter')
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
+)
 
 
 class StatusReporter:
@@ -14,7 +18,7 @@ class StatusReporter:
         self.manager_url = f'http://{Config.MANAGER_IP}:{Config.MANAGER_PORT}/api/judge/executors'
 
     def get_cpu_info(self) -> Dict[str, str]:
-        '''获取CPU信息'''
+        """获取CPU信息"""
         try:
             result = subprocess.run(
                 ['lscpu', '-p=cpu,modelname'],
@@ -37,7 +41,7 @@ class StatusReporter:
             }
 
     def get_memory_info(self) -> int:
-        '''获取内存信息（单位：MiB）'''
+        """获取内存信息（单位：MiB）"""
         try:
             result = subprocess.run(['free', '-m'], capture_output=True, text=True, check=True)
             output = result.stdout.splitlines()[1]
@@ -47,7 +51,7 @@ class StatusReporter:
             return 0
 
     def check_service_alive(self) -> bool:
-        '''检查本地Flask服务是否存活'''
+        """检查本地Flask服务是否存活"""
         try:
             response = requests.get('http://127.0.0.1:10011/alive', timeout=5)
             return response.status_code == 200
@@ -56,7 +60,7 @@ class StatusReporter:
             return False
 
     def collect_status(self) -> Dict[str, Any]:
-        '''收集所有状态信息'''
+        """收集所有状态信息"""
         cpu_info = self.get_cpu_info()
         return {
             'hostname': socket.gethostname(),
@@ -67,7 +71,7 @@ class StatusReporter:
         }
 
     def report(self):
-        '''上报状态到管理节点'''
+        """上报状态到管理节点"""
         status = self.collect_status()
         try:
             response = requests.post(
@@ -81,7 +85,7 @@ class StatusReporter:
             logger.error(f'Failed to report status: {e}')
 
     def start(self):
-        '''启动定时上报'''
+        """启动定时上报"""
         logger.info('Starting status reporter')
         while True:
             self.report()
@@ -89,9 +93,5 @@ class StatusReporter:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
-    )
     reporter = StatusReporter()
     reporter.start()

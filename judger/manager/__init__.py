@@ -14,7 +14,7 @@ def create_app(test_config: Optional[Dict] = None) -> Flask:
     app.config.from_object(Config)
     if test_config is not None:
         app.config.from_mapping(test_config)
-    
+
     # Configure logging format
     formatter = Formatter('[%(levelname)s][%(name)s][%(asctime)s] %(message)s')
     for handler in app.logger.handlers:
@@ -22,13 +22,13 @@ def create_app(test_config: Optional[Dict] = None) -> Flask:
 
     @app.route('/api/judge/<int:judgment_id>', methods=['POST'])
     def judge_submission(judgment_id: int) -> tuple[str, int]:
-        '''接收评测任务请求
+        """接收评测任务请求
 
         将提交ID加入数据库任务队列并返回202状态码。
 
         :param judgment_id: 需要处理的评测记录 ID
         :return: 空字符串和HTTP 202状态码
-        '''
+        """
         # 创建新任务并存入数据库
         new_task = Task(judgment_id=judgment_id)
         db.session.add(new_task)
@@ -54,10 +54,10 @@ def create_app(test_config: Optional[Dict] = None) -> Flask:
 
     @app.route('/api/judge/<int:judgment_id>/result', methods=['POST'])
     def receive_judgment_result(judgment_id: int) -> tuple[str, int]:
-        '''接收评测结果，重置执行节点空闲状态，并将结果转发给Web服务端
+        """接收评测结果，重置执行节点空闲状态，并将结果转发给Web服务端
 
         由执行节点在完成任务后调用
-        '''
+        """
         ip = request.remote_addr
         executor = Executor.query.filter_by(ip=ip).first()
 

@@ -12,7 +12,7 @@ logger = logging.getLogger('validate')
 
 
 def submit_result(judgment_id: int, result: str, log: str):
-    '''提交评测结果到管理节点'''
+    """提交评测结果到管理节点"""
     url = f'http://{Config.MANAGER_IP}:{Config.MANAGER_PORT}/api/judge/{judgment_id}/result'
     payload = {'result': result, 'log': log}
 
@@ -27,9 +27,9 @@ def submit_result(judgment_id: int, result: str, log: str):
 
 
 def compile_project(dandelion_template: Path, n_proc: int) -> tuple[bool, str]:
-    '''编译Dandelion项目'''
+    """编译Dandelion项目"""
     build_dir = dandelion_template / 'build'
-    
+
     # 1. 创建build目录
     build_dir.mkdir(parents=True, exist_ok=True)
     print('directory build/ re-created')
@@ -67,9 +67,9 @@ def compile_project(dandelion_template: Path, n_proc: int) -> tuple[bool, str]:
 
 
 def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tuple[bool, str]:
-    '''执行单元测试'''
+    """执行单元测试"""
     test_build_dir = dandelion_template / 'test' / 'build'
-    
+
     try:
         # 1. 创建测试build目录
         test_build_dir.mkdir(parents=True, exist_ok=True)
@@ -118,16 +118,17 @@ def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tup
             return False, test_process.stdout
 
         return True, ''
-        
+
     except Exception as e:
         return False, str(e)
 
 
-def main(judgment_id: int, unit_test_name: Optional[str] = None):
-    '''执行Dandelion项目验证并提交结果'''
-    dandelion_template = Path(f'{Config.TMP_DIR}/dandelion-template')
+def main(judgment_id: int, temp_dir_path: str, unit_test_name: Optional[str] = None):
+    """执行Dandelion项目验证并提交结果"""
+    # 使用传入的临时目录路径
+    dandelion_template = Path(temp_dir_path)
     n_proc = Config.PARALLEL_BUILD
-    
+
     try:
         # 执行项目编译
         compile_success, compile_log = compile_project(dandelion_template, n_proc)
@@ -158,11 +159,12 @@ if __name__ == '__main__':
         level=logging.INFO,
         format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
     )
-    
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        logger.error('Usage: python validate.py <judgment_id> [unit_test_name]')
+
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        logger.error('Usage: python validate.py <judgment_id> <temp_dir_path> [unit_test_name]')
         sys.exit(1)
 
     judgment_id = int(sys.argv[1])
-    unit_test_name = sys.argv[2] if len(sys.argv) >= 3 else None
-    main(judgment_id, unit_test_name)
+    temp_dir_path = sys.argv[2]
+    unit_test_name = sys.argv[3] if len(sys.argv) >= 4 else None
+    main(judgment_id, temp_dir_path, unit_test_name)

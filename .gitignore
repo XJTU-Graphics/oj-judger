@@ -71,3 +71,4 @@ local_settings.py
 .env.local
 
 web-api-docs
+qdrant

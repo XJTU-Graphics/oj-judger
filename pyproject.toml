@@ -2,10 +2,42 @@
 name = "judger"
 description = "The judger component of the OJ"
 version = "0.1.0"
-dependencies = [
-    "Flask",
-    "flake8",
+authors = [
+    {name = "XJTU-Graphics"}
 ]
+license = {text = "MPL-2.0"}
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "Flask>=3.1.0",
+    "Flask-SQLAlchemy>=3.1.1",
+    "requests>=2.32.4",
+    "filelock>=3.18.0",
+    "gunicorn>=23.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "flake8>=7.1.1",
+    "pytest>=8.3.4",
+]
+
+[project.scripts]
+judger-manager = "judger.cli:manager"
+judger-executor = "judger.cli:executor"
 
 [build-system]
 requires = ["flit_core<4"]

@@ -7,6 +7,10 @@ from judger.manager.config import Config
 
 
 logger = logging.getLogger('distribute')
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
+)
 
 
 def distribute_tasks():
@@ -81,7 +85,7 @@ def distribute_tasks():
 
 
 def handle_failed_executor(cursor, conn, executor_id):
-    '''处理失败节点'''
+    """处理失败节点"""
     # 删除节点
     cursor.execute('DELETE FROM executors WHERE id=?', (executor_id,))
     conn.commit()
@@ -89,8 +93,4 @@ def handle_failed_executor(cursor, conn, executor_id):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
-    )
     distribute_tasks()

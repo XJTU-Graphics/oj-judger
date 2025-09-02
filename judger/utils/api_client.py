@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, List
 import requests
 from judger.utils.token_manager import TokenManager
 
@@ -74,14 +74,14 @@ class APIClient:
         params: Optional[Dict] = None,
         parse_json: bool = True,
         **kwargs
-    ) -> Union[Dict, requests.Response]:
+    ) -> List | Dict | requests.Response:
         """发送GET请求
 
         :param endpoint: API端点路径
         :param params: 查询参数字典
         :param parse_json: 是否解析为JSON
         :param kwargs: 额外请求参数(如stream=True)
-        :return: 响应数据或原始响应对象
+        :return: 如果请求的是文件且请求成功，则返回原始响应对象，其余情况返回解析 JSON 响应体得到的字典或列表
         :raises APIRequestError: 当请求失败时抛出
         """
         response = self._request('GET', endpoint, params=params, **kwargs)

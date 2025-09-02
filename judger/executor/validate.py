@@ -1,18 +1,32 @@
-import sys
 import shutil
 import subprocess
 import requests
 import logging
+import argparse
+import json
 from pathlib import Path
 from typing import Optional
 from judger.executor.config import Config
+from judger.executor.function_extractor import extract_function_implementation
+from judger.executor.function_types import (
+    FunctionRequirement, FunctionSignature, FunctionParameter
+)
 
 
 logger = logging.getLogger('validate')
 
 
 def submit_result(judgment_id: int, result: str, log: str):
-    """提交评测结果到管理节点"""
+    """
+    提交评测结果到管理节点
+
+    :param judgment_id: 评测 ID
+    :param result: 评测结果，必须是以下三者之一：
+        - passed ，表示评测通过
+        - failed ，表示评测未通过
+        - error ，表示服务端执行评测过程中出错，但不是因为提交的代码本身有问题
+    :param log: 当评测结果是 failed 或 error 时，用于返回失败命令的输出内容
+    """
     url = f'http://{Config.MANAGER_IP}:{Config.MANAGER_PORT}/api/judge/{judgment_id}/result'
     payload = {'result': result, 'log': log}
 
@@ -26,9 +40,9 @@ def submit_result(judgment_id: int, result: str, log: str):
         logger.error(f'请求管理节点失败: {str(e)}')
 
 
-def compile_project(dandelion_template: Path, n_proc: int) -> tuple[bool, str]:
+def compile_project(template_dir: Path, n_proc: int) -> tuple[bool, str]:
     """编译Dandelion项目"""
-    build_dir = dandelion_template / 'build'
+    build_dir = template_dir / 'build'
 
     # 1. 创建build目录
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -36,7 +50,7 @@ def compile_project(dandelion_template: Path, n_proc: int) -> tuple[bool, str]:
 
     # 2. 执行cmake配置
     cmake_process = subprocess.run(
-        ['cmake', '-S', str(dandelion_template), '-B', str(build_dir)],
+        ['cmake', '-S', str(template_dir), '-B', str(build_dir)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,
@@ -66,9 +80,9 @@ def compile_project(dandelion_template: Path, n_proc: int) -> tuple[bool, str]:
     return True, ''
 
 
-def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tuple[bool, str]:
+def run_tests(template_dir: Path, n_proc: int, unit_test_name: str) -> tuple[bool, str]:
     """执行单元测试"""
-    test_build_dir = dandelion_template / 'test' / 'build'
+    test_build_dir = template_dir / 'test' / 'build'
 
     try:
         # 1. 创建测试build目录
@@ -77,7 +91,7 @@ def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tup
 
         # 2. 执行cmake配置
         cmake_process = subprocess.run(
-            ['cmake', '-S', str(dandelion_template / 'test'), '-B', str(test_build_dir)],
+            ['cmake', '-S', str(template_dir / 'test'), '-B', str(test_build_dir)],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
@@ -123,23 +137,130 @@ def run_tests(dandelion_template: Path, n_proc: int, unit_test_name: str) -> tup
         return False, str(e)
 
 
-def main(judgment_id: int, temp_dir_path: str, unit_test_name: Optional[str] = None):
+def extract_and_log_functions(
+    template_dir: Path,
+    function_requirements_json: Optional[str] = None
+) -> bool:
+    """
+    提取并记录函数实现
+
+    :param template_dir: 模板目录路径
+    :param problem_id: 题目ID
+    :param function_requirements_json: 函数需求信息的JSON字符串
+    :return: 是否所有函数都成功提取
+    :raises RuntimeError: 当提取流程出现错误时抛出
+    """
+    try:
+        # 如果有函数需求信息的JSON字符串，直接解析使用
+        if function_requirements_json:
+            requirements_data = json.loads(function_requirements_json)
+
+            # 将字典数据转换为函数需求对象
+            function_requirements = []
+            for req_data in requirements_data:
+                # 解析函数签名
+                sig_data = req_data['function_signature']
+                parameters = [
+                    FunctionParameter(param['name'], param['type'])
+                    for param in sig_data['parameters']
+                ]
+                function_signature = FunctionSignature(
+                    sig_data['return_type'],
+                    sig_data['name'],
+                    parameters
+                )
+
+                # 创建函数需求对象
+                requirement = FunctionRequirement(
+                    req_data['id'],
+                    req_data['problem_id'],
+                    req_data['source_file_path'],
+                    function_signature
+                )
+                function_requirements.append(requirement)
+
+            logger.info(f'从命令行参数解析得到 {len(function_requirements)} 个函数需求')
+        else:
+            # 如果没有提供函数需求信息的JSON字符串，说明没有函数需求需要提取
+            logger.info('没有提供函数需求信息，跳过函数提取')
+            return True
+
+        # 提取每个函数的实现
+        build_dir = template_dir / 'build'
+        for requirement in function_requirements:
+            source_file_path = template_dir / requirement.source_file_path
+            logger.info(f'从 {source_file_path} 中提取函数 {requirement.function_signature.name}')
+
+            if not source_file_path.exists():
+                logger.error(f'源文件不存在: {source_file_path}')
+                return False
+
+            try:
+                # 提取函数实现
+                implementation = extract_function_implementation(
+                    source_file_path,
+                    requirement.function_signature,
+                    build_dir
+                )
+
+                if implementation is None:
+                    logger.error(
+                        f'提取函数 {requirement.function_signature.name} 实现失败'
+                    )
+                    return False
+                else:
+                    # 输出函数实现到日志
+                    logger.info(f'函数 {requirement.function_signature.name} 实现提取成功:')
+                    logger.info(f'--- impl start ---\n{implementation}')
+                    logger.info('---  impl end  ---')
+            except RuntimeError as e:
+                # 重新抛出 RuntimeError
+                logger.error(f'提取函数 {requirement.function_signature.name} 实现时发生流程错误: {str(e)}')
+                raise
+
+        return True
+
+    except RuntimeError:
+        # 重新抛出 RuntimeError
+        raise
+    except Exception as e:
+        # 其他异常转换为 RuntimeError 并抛出
+        logger.error(f'提取函数实现时发生未知错误: {str(e)}')
+        raise RuntimeError(f'提取函数实现失败: {str(e)}') from e
+
+
+def main(
+    judgment_id: int,
+    temp_dir_path: str,
+    unit_test_name: Optional[str] = None,
+    problem_id: Optional[int] = None,
+    function_requirements_json: Optional[str] = None
+):
     """执行Dandelion项目验证并提交结果"""
     # 使用传入的临时目录路径
-    dandelion_template = Path(temp_dir_path)
+    template_dir = Path(temp_dir_path)
     n_proc = Config.PARALLEL_BUILD
 
     try:
         # 执行项目编译
-        compile_success, compile_log = compile_project(dandelion_template, n_proc)
+        compile_success, compile_log = compile_project(template_dir, n_proc)
         if not compile_success:
             return submit_result(judgment_id, 'failed', compile_log)
 
         # 执行单元测试（如果提供测试名称）
         if unit_test_name:
-            test_success, test_log = run_tests(dandelion_template, n_proc, unit_test_name)
+            test_success, test_log = run_tests(template_dir, n_proc, unit_test_name)
             if not test_success:
                 return submit_result(judgment_id, 'failed', test_log)
+
+        # 提取函数实现（如果提供了problem_id）
+        if problem_id is not None:
+            extraction_success = extract_and_log_functions(
+                template_dir,
+                function_requirements_json
+            )
+            if not extraction_success:
+                return submit_result(judgment_id, 'failed', '函数提取失败')
 
         # 全部成功
         submit_result(judgment_id, 'passed', '')
@@ -150,8 +271,8 @@ def main(judgment_id: int, temp_dir_path: str, unit_test_name: Optional[str] = N
 
     finally:
         # 清理整个临时目录
-        if dandelion_template.exists():
-            shutil.rmtree(dandelion_template, ignore_errors=True)
+        if template_dir.exists():
+            shutil.rmtree(template_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
@@ -160,11 +281,20 @@ if __name__ == '__main__':
         format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
     )
 
-    if len(sys.argv) < 3 or len(sys.argv) > 4:
-        logger.error('Usage: python validate.py <judgment_id> <temp_dir_path> [unit_test_name]')
-        sys.exit(1)
+    # 使用argparse解析命令行参数
+    parser = argparse.ArgumentParser(description='执行Dandelion项目验证')
+    parser.add_argument('--judgment-id', type=int, required=True, help='评测ID')
+    parser.add_argument('--temp-dir', type=str, required=True, help='临时目录路径')
+    parser.add_argument('--unit-test', type=str, help='单元测试名称')
+    parser.add_argument('--problem-id', type=int, help='题目ID')
+    parser.add_argument('--function-requirements', type=str, help='函数需求信息的JSON字符串')
 
-    judgment_id = int(sys.argv[1])
-    temp_dir_path = sys.argv[2]
-    unit_test_name = sys.argv[3] if len(sys.argv) >= 4 else None
-    main(judgment_id, temp_dir_path, unit_test_name)
+    args = parser.parse_args()
+
+    main(
+        args.judgment_id,
+        args.temp_dir,
+        args.unit_test,
+        args.problem_id,
+        args.function_requirements
+    )

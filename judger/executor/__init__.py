@@ -68,23 +68,68 @@ def judge_judgment(judgment_id):
         # 获取远程模板
         template_info = template_manager.get_template(problem_info['template_id'])
         template_dir = template_info['path']
-        template_dir_name = template_info['dir_name']
         shutil.copytree(template_dir, temp_dir)
 
         # 解压到临时目录的模板中
         shutil.unpack_archive(
-            filename=zip_path, extract_dir=temp_dir / template_dir_name, format='zip'
+            filename=zip_path, extract_dir=temp_dir, format='zip'
         )
         zip_path.unlink()
         current_app.logger.info(f'{zip_path} unpacked to {temp_dir}')
+
+        # 在启动子进程前，获取函数需求信息
+        function_requirements_json = None
+        try:
+            from judger.executor.function_requirements import get_function_requirements
+            from judger.executor.function_types import FunctionRequirement
+            function_requirements = get_function_requirements(api_client, problem_info['id'])
+
+            # 如果有函数需求，则序列化并传递给子进程
+            if len(function_requirements) > 0:
+                # 将函数需求列表转换为可序列化的字典列表
+                import json
+                from dataclasses import asdict
+
+                def serialize_function_requirement(req: FunctionRequirement):
+                    # 将 FunctionRequirement 对象转换为字典
+                    req_dict = asdict(req)
+                    # 将 FunctionSignature 对象也转换为字典
+                    req_dict['function_signature'] = asdict(req.function_signature)
+                    # 将 FunctionParameter 对象列表转换为字典列表
+                    req_dict['function_signature']['parameters'] = [
+                        asdict(param) for param in req_dict['function_signature']['parameters']
+                    ]
+                    return req_dict
+
+                function_requirements_data = [
+                    serialize_function_requirement(req) for req in function_requirements
+                ]
+                function_requirements_json = json.dumps(function_requirements_data)
+                current_app.logger.info(f'获取到 {len(function_requirements)} 个函数需求')
+            else:
+                current_app.logger.info(f'题目 {problem_info["id"]} 没有函数需求')
+        except Exception as e:
+            current_app.logger.error(f'获取函数需求失败: {str(e)}')
+            # 如果获取失败，仍然继续执行，但不传递函数需求信息
 
         # 异步启动验证脚本
         import subprocess
         import sys
         validator_path = Path(__file__).parent / 'validate.py'
-        args = [sys.executable, validator_path, str(judgment_id), str(temp_dir / template_dir_name)]
+        args = [
+            sys.executable,
+            validator_path,
+            '--judgment-id', str(judgment_id),
+            '--temp-dir', str(temp_dir)
+        ]
         if unit_test_name:
-            args.append(unit_test_name)
+            args.extend(['--unit-test', unit_test_name])
+        # 添加problem_id参数
+        args.extend(['--problem-id', str(problem_info['id'])])
+        # 如果有函数需求信息，添加到命令行参数
+        if function_requirements_json:
+            args.extend(['--function-requirements', function_requirements_json])
+
         subprocess.Popen(args)
         current_app.logger.info('validator started')
 
@@ -94,7 +139,7 @@ def judge_judgment(judgment_id):
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         current_app.logger.error(f'Judge submission error: {str(e)}')
-        return jsonify({'error_message': f'Unexpected error: {str(e)}'}), 500
+        return jsonify(error_message=f'Unexpected error: {str(e)}'), 500
 
 
 def create_app(test_config: Optional[Dict] = None) -> Flask:

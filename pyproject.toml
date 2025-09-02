@@ -1,6 +1,6 @@
 [project]
 name = "judger"
-description = "The judger component of the OJ"
+description = "Judger server component for XJTU Graphics course OJ"
 version = "0.1.0"
 authors = [
     {name = "XJTU-Graphics"}
@@ -27,6 +27,7 @@ dependencies = [
     "requests>=2.32.4",
     "filelock>=3.18.0",
     "gunicorn>=23.0.0",
+    "libclang>=18.1.1",
 ]
 
 [project.optional-dependencies]

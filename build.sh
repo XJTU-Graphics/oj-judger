@@ -41,6 +41,6 @@ python -m build
 
 # 显示构建结果
 echo "构建完成！生成的文件:"
-ls -la dist/
+ls -hl dist/
 
 echo "构建脚本执行完成。"

@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Any
 from flask import Flask, request, jsonify, current_app
 from judger.utils.token_manager import TokenManager
 from judger.utils.api_client import APIClient
@@ -67,16 +67,33 @@ def create_app(test_config: Optional[Dict] = None) -> Flask:
                 db.session.commit()
 
                 # 获取请求体中的评测结果
-                result_data = request.get_json()
+                result_data: Dict[str, Any] = request.get_json()
                 if result_data is None:
                     return jsonify({'error': 'Missing result data'}), 400
+                judgment_result = {
+                    'result': result_data['result'],
+                    'log': result_data['log']
+                }
+                function_impls: List[str] | None = result_data.get('function_impls', None)
 
                 # 创建 API 客户端实例
                 api_client = APIClient(current_app.token_manager)
+                judgment: Dict[str, Any] = api_client.get(f'/api/judgments/{judgment_id}')
+                submission_id = judgment['submission_id']
 
                 try:
                     # 将评测结果转发给Web服务端
-                    api_client.post(f'/api/judgments/{judgment_id}/result', data=result_data)
+                    api_client.post(f'/api/judgments/{judgment_id}/result', data=judgment_result)
+                    if function_impls is not None:
+                        for function_impl in function_impls:
+                            response = api_client.post(
+                                f'/api/submissions/{submission_id}/function_impls',
+                                data={'code': function_impl}
+                            )
+                            function_impl_id = response['function_impl_id']
+                            current_app.logger.info(
+                                f'Web 服务端 FunctionImplementation 创建成功，ID: {function_impl_id}'
+                            )
                 except Exception as api_error:
                     # 记录错误但继续执行
                     current_app.logger.error(f'更新评测结果失败: {str(api_error)}')

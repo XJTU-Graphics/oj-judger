@@ -27,7 +27,6 @@ class FunctionSignature:
 class FunctionRequirement:
     """函数需求"""
     id: int
-    problem_id: int
     source_file_path: str
     function_signature: FunctionSignature
 
@@ -44,10 +43,10 @@ def parse_function_signature(signature_data: Dict[str, Any]) -> FunctionSignatur
     name = signature_data.get('name')
 
     if return_type is None:
-        raise RuntimeError("函数签名中缺少 'return_type' 字段")
+        raise RuntimeError('no \"return_type\" field in function signature')
 
     if name is None:
-        raise RuntimeError("函数签名中缺少 'name' 字段")
+        raise RuntimeError('no \"name\" field in function signature')
 
     parameters_data = signature_data.get('parameters', [])
 
@@ -57,10 +56,10 @@ def parse_function_signature(signature_data: Dict[str, Any]) -> FunctionSignatur
         param_type = param.get('type')
 
         if param_name is None:
-            raise RuntimeError("函数参数中缺少 'name' 字段")
+            raise RuntimeError('no \"name\" field in parameter')
 
         if param_type is None:
-            raise RuntimeError("函数参数中缺少 'type' 字段")
+            raise RuntimeError('no \"type\" field in parameter')
 
         parameters.append(FunctionParameter(param_name, param_type))
 
@@ -75,7 +74,6 @@ def parse_function_requirement(requirement_data: Dict[str, Any]) -> FunctionRequ
     :return: 解析后的函数需求对象
     """
     requirement_id = requirement_data.get('id', 0)
-    problem_id = requirement_data.get('problem_id', 0)
     source_file_path = requirement_data.get('source_file_path', '')
     signature_data = requirement_data.get('function_signature', {})
 
@@ -83,7 +81,6 @@ def parse_function_requirement(requirement_data: Dict[str, Any]) -> FunctionRequ
 
     return FunctionRequirement(
         requirement_id,
-        problem_id,
         source_file_path,
         function_signature
     )

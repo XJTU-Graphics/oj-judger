@@ -28,4 +28,4 @@ class Executor(db.Model):
     idle: Mapped[bool] = mapped_column(default=True)  # 节点空闲状态
 
     def __repr__(self):
-        return f'<Executor {self.ip}>'
+        return f'Executor (ID: {self.id}, IP: {self.ip}, idle: {self.idle})'

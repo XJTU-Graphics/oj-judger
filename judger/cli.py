@@ -53,7 +53,7 @@ def manager() -> None:
         # 在生产模式下，使用 gunicorn 运行 Flask 应用，并在子进程中运行分发脚本
         # 启动分发脚本子进程
         distribute_process = subprocess.Popen([
-            sys.executable, '-c', 
+            sys.executable, '-c',
             'from judger.manager.distribute import distribute_tasks; distribute_tasks()'
         ])
 

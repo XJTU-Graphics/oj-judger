@@ -14,3 +14,5 @@ class Config:
     # Number of parallel build processes (default: CPU count or 4)
     PARALLEL_BUILD = os.environ.get('PARALLEL_BUILD') or os.cpu_count() or 4
     TMP_DIR = os.environ.get('TMP_DIR') or '/tmp'
+    LOG_FORMAT = '[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
+    LOG_DIR = os.environ.get('LOG_DIR') or '/var/log/judgment'

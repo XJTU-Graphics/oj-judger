@@ -35,7 +35,7 @@ def submit_result(
     payload = {'result': result, 'log': log}
     if result == 'passed' and function_impls is not None:
         payload['function_impls'] = function_impls
-    logger.info(f'result submitted: {result}')
+    logger.info(f'result to submit: {result}')
 
     try:
         response = requests.post(url, json=payload)
@@ -284,11 +284,6 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='[%(levelname)s][%(name)s][%(asctime)s] %(message)s'
-    )
-
     # 使用argparse解析命令行参数
     parser = argparse.ArgumentParser(description='执行Dandelion项目验证')
     parser.add_argument('--judgment-id', type=int, required=True, help='评测ID')
@@ -297,6 +292,11 @@ if __name__ == '__main__':
     parser.add_argument('--function-requirements', type=str, help='函数需求信息的JSON字符串')
 
     args = parser.parse_args()
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format=Config.LOG_FORMAT,
+        filename=Path(Config.LOG_DIR) / f'{args.judgment_id}.log'
+    )
 
     main(
         args.judgment_id,

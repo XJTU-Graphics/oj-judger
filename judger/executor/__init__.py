@@ -139,11 +139,15 @@ def create_app(test_config: Optional[Dict] = None) -> Flask:
     if test_config is not None:
         app.config.from_mapping(test_config)
 
-    # Configure logging format
-    formatter = Formatter('[%(levelname)s][%(name)s][%(asctime)s] %(message)s')
+    # 日志格式
+    formatter = Formatter(app.config['LOG_FORMAT'])
     for handler in app.logger.handlers:
         handler.setFormatter(formatter)
     app.logger.setLevel(logging.INFO)
+    log_dir = Path(app.config['LOG_DIR'])
+    # 创建执行评测的日志目录
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
 
     @app.get('/alive')
     def is_alive():

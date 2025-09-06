@@ -52,7 +52,7 @@ def distribute_tasks():
                     continue
 
             if chosen_executor is None:
-                logger.warning('no alive executor node')
+                logger.warning('all alive executor nodes are busy')
                 continue
             executor_id, executor_ip = chosen_executor
 

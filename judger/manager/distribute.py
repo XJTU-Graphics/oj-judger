@@ -49,10 +49,11 @@ def distribute_tasks():
                         break
                 except json.JSONDecodeError:
                     logger.error(f'cannot parse \"data\" field of executor {executor_id}')
+                    handle_failed_executor(cursor, conn, executor_id)
                     continue
 
             if chosen_executor is None:
-                logger.warning('all alive executor nodes are busy')
+                logger.warning('no idle executor node is available')
                 continue
             executor_id, executor_ip = chosen_executor
 
